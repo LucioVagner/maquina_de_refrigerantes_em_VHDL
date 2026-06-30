@@ -5,12 +5,15 @@ USE IEEE.std_logic_unsigned.all;
 entity maq_refri is
     port(
         clock, reset: in std_logic;
+
         I_mode: in std_logic;
         I_CanNumber: in std_logic_vector(3 downto 0);
         I_ticket : in std_logic;
+
 		  displata1 : out std_logic_vector(6 downto 0);
 		  displata0 : out std_logic_vector(6 downto 0);
 		  dispficha : out std_logic_vector(6 downto 0);
+
         O_Number : out std_logic_vector(3 downto 0);
         O_Value : out std_logic_vector(2 downto 0);
         O_Release : out std_logic
@@ -28,7 +31,7 @@ component Reg_1bit
 
 end component;
 
-component fripefrope 
+component flipflop 
     port(
             D, clock, clear: in std_logic;
             Q, notQ: out std_logic
@@ -52,8 +55,7 @@ component Divfreq_1Hz
 end component;
 
 
-
-component cont
+component contador
     port(
             clock,clear : in std_logic;
             op : in std_logic_vector(1 downto 0);
@@ -61,11 +63,12 @@ component cont
             q : out std_logic_vector(3 downto 0)
         );
 end component;
-component seg71
+
+component display
 		port(
-				entrada : in std_logic_vector(3 downto 0); -- Aumentado para 6 bits (-32 a 31)
-				saida1 : out std_logic_vector(6 downto 0); -- Dezenas
-				saida2 : out std_logic_vector(6 downto 0) -- Unidades
+				entrada : in std_logic_vector(3 downto 0); 
+				saida1 : out std_logic_vector(6 downto 0);
+				saida2 : out std_logic_vector(6 downto 0) 
 		);
 end component;
 
