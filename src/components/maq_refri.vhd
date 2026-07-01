@@ -1,153 +1,139 @@
-Library IEEE;
-USE IEEE.std_logic_1164.all;
-USE IEEE.std_logic_unsigned.all;
+library IEEE;
+use IEEE.std_logic_1164.all;
 
 entity maq_refri is
-    port(
-        clock, reset: in std_logic;
-
-        I_mode: in std_logic;
-        I_CanNumber: in std_logic_vector(3 downto 0);
-        I_ticket : in std_logic;
-
-		  displata1 : out std_logic_vector(6 downto 0);
-		  displata0 : out std_logic_vector(6 downto 0);
-		  dispficha : out std_logic_vector(6 downto 0);
-
-        O_Number : out std_logic_vector(3 downto 0);
-        O_Value : out std_logic_vector(2 downto 0);
-        O_Release : out std_logic
-);
-
+    port (
+        clk         : in  std_logic;
+        rst         : in  std_logic;
+        I_Mode      : in  std_logic;
+        I_CanNumber : in  std_logic_vector(3 downto 0);
+        I_ticket    : in  std_logic;
+        
+        O_Number    : out std_logic_vector(3 downto 0);
+        O_Value     : out std_logic_vector(2 downto 0);
+        O_Release   : out std_logic;
+        
+        HEX0        : out std_logic_vector(6 downto 0); -- Unidade estoque
+        HEX1        : out std_logic_vector(6 downto 0); -- Dezena estoque
+        HEX2        : out std_logic_vector(6 downto 0)  -- Fichas
+    );
 end maq_refri;
 
-architecture sim of maq_refri is
+architecture estrutural of maq_refri is
 
-component Reg_1bit
-    Port(
-            clock,carga, clear, d : in std_logic;
-            q : out std_logic
-    );
-
-end component;
-
-component flipflop 
-    port(
-            D, clock, clear: in std_logic;
-            Q, notQ: out std_logic
-        ); 
-
-end component;
-
-
-component Divfreq 
-    port(clock,reset : in std_logic;
-            q : out std_logic); -- frequencia divida por 16
-
-end component;
-
-
-component Divfreq_1Hz
-
-    port(clock,reset : in std_logic;-- frequencia de 27MHz
-            q : out std_logic_vector(1 downto 0)); -- frequencia de 1 Hz
-
-end component;
-
-
-component contador
-    port(
-            clock,clear : in std_logic;
-            op : in std_logic_vector(1 downto 0);
-            a : in std_logic_vector(3 downto 0);
-            q : out std_logic_vector(3 downto 0)
+    component divfrenq_1Hz
+        port (
+            clock : in  std_logic;
+            reset : in  std_logic;
+            q     : out std_logic
         );
-end component;
+    end component;
 
-component display
-		port(
-				entrada : in std_logic_vector(3 downto 0); 
-				saida1 : out std_logic_vector(6 downto 0);
-				saida2 : out std_logic_vector(6 downto 0) 
-		);
-end component;
+    component EdgeDetect
+        port (
+            clock : in  std_logic;
+            reset : in  std_logic;
+            D     : in  std_logic;
+            pulse : out std_logic
+        );
+    end component;
 
-signal clock1 : std_logic;
-signal fichas: std_logic_vector(3 downto 0);
-signal quanti_fichas: std_logic_vector(3 downto 0);
-signal opfichas : std_logic_vector(1 downto 0);
-signal estoque : std_logic_vector(3 downto 0);
-signal freq : std_logic_vector(1 downto 0);
-signal venda : std_logic;
-signal opestoque: std_logic_vector (1 downto 0);
-signal quanti_estoque : std_logic_vector(3 downto 0);
-signal release : std_logic;
+    component CtrlLogic
+        port (
+            I_Mode      : in  std_logic;
+            I_CanNumber : in  std_logic_vector(3 downto 0);
+            I_ticket    : in  std_logic;
+            I_release   : in  std_logic;
+            fichas      : in  std_logic_vector(2 downto 0);
+            estoque     : in  std_logic_vector(3 downto 0);
+            op_fichas   : out std_logic_vector(1 downto 0);
+            op_estoque  : out std_logic_vector(1 downto 0);
+            load_val    : out std_logic_vector(3 downto 0);
+            venda_ok    : out std_logic
+        );
+    end component;
+
+    component Contador
+        port (
+            clock : in  std_logic;
+            reset : in  std_logic;
+            op    : in  std_logic_vector(1 downto 0);
+            a     : in  std_logic_vector(3 downto 0);
+            q     : out std_logic_vector(3 downto 0)
+        );
+    end component;
+
+    component Bin2BCD
+        port (
+            bin     : in  std_logic_vector(3 downto 0);
+            dezena  : out std_logic_vector(3 downto 0);
+            unidade : out std_logic_vector(3 downto 0)
+        );
+    end component;
+
+    component Dec7seg
+        port (
+            bcd : in  std_logic_vector(3 downto 0);
+            seg : out std_logic_vector(6 downto 0)
+        );
+    end component;
+
+    -- 2. Sinais internos para interligar os blocos
+    signal clk_1Hz        : std_logic;
+    signal pulse_release  : std_logic;
+    signal venda_ok_sig   : std_logic;
+    
+    signal fichas_4b      : std_logic_vector(3 downto 0);
+    signal estoque_sig    : std_logic_vector(3 downto 0);
+    
+    signal op_fichas_sig  : std_logic_vector(1 downto 0);
+    signal op_estoque_sig : std_logic_vector(1 downto 0);
+    signal load_val_sig   : std_logic_vector(3 downto 0);
+    
+    signal bcd_dezena     : std_logic_vector(3 downto 0);
+    signal bcd_unidade    : std_logic_vector(3 downto 0);
 
 begin
-        contaficha: cont
-        port map(clock => clock1, clear => reset, op => opfichas, a => quanti_fichas, q => fichas);
-        
-        contaestoque: cont
-        port map(clock => clock1, clear => reset, op => opestoque, a => quanti_estoque, q => estoque );
 
-        O_number <= estoque;
-        O_value <=  fichas(2 downto 0); --gemini falo q da pra converter assim sem ter q criar mais um contador separado so pra contar 3 bits
+    
+    
+    divisor: Divfrenq_1Hz 
+        port map (clock => clk, reset => rst, q => clk_1Hz);
 
-        venda <= '1' when (	fichas = "0101" and estoque /= "0000")
-                         else '0';
+    detector_venda: EdgeDetect 
+        port map (clock => clk_1Hz, reset => rst, D => venda_ok_sig, pulse => pulse_release);
 
-        divisor: Divfreq_1Hz 
-        port map(clock => clock, reset => reset, q => freq);
-		  
-        clock1 <= freq(0);
-		  
-		  displaylata : seg71
-		  port map(entrada => estoque, saida1 => displata1, saida2 => displata0);
-		  
-		  displayficha: seg71
-		  port map(entrada => fichas, saida2 => dispficha);
-		  
-		  ff: fripefrope
-		  port map(clock => clock1, clear => reset, D => venda, q => release);
-		  
-		  o_release <= release;
-			
-        process(I_ticket, fichas, venda)
-        begin
-            quanti_fichas <= "0000";
-            if I_ticket = '0' then
-                opfichas<= "00"; 
-				
+    cerebro: CtrlLogic 
+        port map (
+            I_Mode => I_Mode, I_CanNumber => I_CanNumber, I_ticket => I_ticket,
+            I_release => pulse_release, fichas => fichas_4b(2 downto 0), 
+            estoque => estoque_sig, op_fichas => op_fichas_sig, 
+            op_estoque => op_estoque_sig, load_val => load_val_sig, 
+            venda_ok => venda_ok_sig
+        );
 
-            elsif I_ticket = '1' and fichas < "0101" then
-                opfichas<= "11"; --soma 1 nas fichas ate chegar em 0101, nao podendo ser mais nem menos que isso para libera
-					
-            else
-                opfichas<= "00";
-				end if;
-        end process;
+    cnt_fichas: Contador 
+        port map (clock => clk_1Hz, reset => rst, op => op_fichas_sig, a => "0000", q => fichas_4b);
 
-        process (I_mode, i_canNumber, estoque, venda )
-            variable temp: std_logic_vector(4 downto 0);
-        begin
-            opestoque <= "00";
-            quanti_estoque <= "0000";
-				
-            if i_mode = '1' then
-                temp(4) := '0';
-                temp(3 downto 0) := estoque;
+    cnt_estoque: Contador 
+        port map (clock => clk_1Hz, reset => rst, op => op_estoque_sig, a => load_val_sig, q => estoque_sig);
 
-                temp := temp + i_canNumber;                
-                opestoque <= "01";
-                
-                if temp > "01111" then
-                    quanti_estoque <= "1111";
-                else 
-                    quanti_estoque <= temp(3 downto 0);
-                end if;
-            elsif release = '1' then
-                opestoque <= "10";
-            end if;
-        end process;
+    conversor_bcd: Bin2BCD 
+        port map (bin => estoque_sig, dezena => bcd_dezena, unidade => bcd_unidade);
 
-end sim; 
+    -- Gambiarra padrao pra transformar 3 bits de ficha em 4 bits pro display
+    disp_fichas: Dec7seg 
+        port map (bcd => ('0' & fichas_4b(2 downto 0)), seg => HEX2);
+
+    disp_estoque_dez: Dec7seg 
+        port map (bcd => bcd_dezena, seg => HEX1);
+
+    disp_estoque_uni: Dec7seg 
+        port map (bcd => bcd_unidade, seg => HEX0);
+
+
+    O_Number  <= estoque_sig;
+    O_Value   <= fichas_4b(2 downto 0);
+    O_Release <= pulse_release;
+
+end estrutural;

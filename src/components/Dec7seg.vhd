@@ -1,0 +1,42 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+
+-- Decodificador BCD (4 bits) para display 7 segmentos
+-- Saída ativo-baixo (padrão do Kit Altera DE-2)
+-- Segmentos: seg(6)=g  seg(5)=f  seg(4)=e  seg(3)=d
+--            seg(2)=c  seg(1)=b  seg(0)=a
+--
+--   aaa
+--  f   b
+--  f   b
+--   ggg
+--  e   c
+--  e   c
+--   ddd
+entity Dec7seg is
+    port (
+        bcd : in  std_logic_vector(3 downto 0);
+        seg : out std_logic_vector(6 downto 0)  -- ativo-baixo
+    );
+end Dec7seg;
+
+architecture arq of Dec7seg is
+begin
+    process (bcd)
+    begin
+        case bcd is
+            --                  gfedcba
+            when "0000" => seg <= "1000000"; -- 0
+            when "0001" => seg <= "1111001"; -- 1
+            when "0010" => seg <= "0100100"; -- 2
+            when "0011" => seg <= "0110000"; -- 3
+            when "0100" => seg <= "0011001"; -- 4
+            when "0101" => seg <= "0010010"; -- 5
+            when "0110" => seg <= "0000010"; -- 6
+            when "0111" => seg <= "1111000"; -- 7
+            when "1000" => seg <= "0000000"; -- 8
+            when "1001" => seg <= "0010000"; -- 9
+            when others => seg <= "1111111"; -- apagado
+        end case;
+    end process;
+end arq;
