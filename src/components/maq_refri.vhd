@@ -21,7 +21,7 @@ end maq_refri;
 
 architecture estrutural of maq_refri is
 
-    component divfrenq_1Hz
+    component div_freq1hz
         port (
             clock : in  std_logic;
             reset : in  std_logic;
@@ -97,7 +97,7 @@ begin
 
     
     
-    divisor: Divfrenq_1Hz 
+    divisor: Div_freq1Hz 
         port map (clock => clk, reset => rst, q => clk_1Hz);
 
     detector_venda: EdgeDetect 

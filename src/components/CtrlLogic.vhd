@@ -2,16 +2,6 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.std_logic_unsigned.all;
 
---
--- Entradas:
---   I_Mode      : modo de repor os trem ativo
---   I_CanNumber : quantidade a repor (4 bits)
---   I_ticket    : ficha inserida
---   I_release   : sinal interno: venda autorizada vulgo detector de borda(edge detect)
---   fichas      : valor atual do contador de fichas (3 bits)
---   estoque     : valor atual do contador de estoque (4 bits)
---
-
 entity CtrlLogic is
     port (
         I_Mode      : in  std_logic;
@@ -36,43 +26,48 @@ begin
     -- Soma do estoque atual com a reposicao (5 bits para capturar carry)
     soma <= ('0' & estoque) + ('0' & I_CanNumber);
 
-    -- Flags combilacionais
-    fichas_max <= '1' when fichas = "101" else '0';
+    -- Flags combinacionais
+    fichas_max <= '1' when fichas = "101" else '0'; -- "101" = 5 fichas
     estoque_ok <= '1' when estoque /= "0000" else '0';
 
-    
+    -- Ativa a venda quando chega a 5 fichas e tem refrigerante no estoque
     venda_ok <= fichas_max and estoque_ok;
 
-    process (I_ticket, fichas_max)
+    -- PROCESSO DAS FICHAS (CORRIGIDO)
+    process (I_ticket, fichas_max, I_release)
     begin
-        if fichas_max = '1' and I_ticket = '0' then
-            
+        if I_release = '1' then
+            -- PRIORIDADE 1: Venda liberada! Zera as fichas imediatamente (operação LOAD "01")
             op_fichas <= "01";       
-        elsif I_ticket = '1' and fichas_max = '0' then
             
+        elsif I_ticket = '0' and fichas_max = '0' then
+            -- PRIORIDADE 2: Botão KEY1 pressionado ('0') e não chegou a 5: Soma ficha (operação INCREMENTO "11")
             op_fichas <= "11";     
-        else
             
+        else
+            -- PADRÃO: Botão solto, ou máquina já cheia esperando a venda: Mantém o valor (operação HOLD "00")
             op_fichas <= "00";          
         end if;
     end process;
 
 
+    -- PROCESSO DO ESTOQUE (MANTIDO)
     process (I_Mode, I_release, soma)
     begin
         if I_Mode = '1' then
-            
+            -- Modo Abastecimento: Carrega o novo valor somado
             op_estoque <= "01";        
             if soma > "01111" then      
-                load_val <= "1111";
+                load_val <= "1111"; -- Limita o estoque em 15 max
             else
                 load_val <= soma(3 downto 0);
             end if;
         elsif I_release = '1' then
-            -- Venda autorizada: decrementa estoque
-            op_estoque <= "10";         -- decrementa
+            -- Venda autorizada: Decrementa estoque (-1)
+            op_estoque <= "10";         
             load_val   <= (others => '0');
         else
+            -- Mantém o estoque atual
             op_estoque <= "00";         
             load_val   <= (others => '0');
         end if;
